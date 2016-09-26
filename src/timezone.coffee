@@ -8,11 +8,12 @@
 #   hubot time in <location> - Ask hubot for a time in a location
 #   hubot <time> in <location> - Convert a given time to a given location, e.g. "1pm in Sydney"
 #   hubot <time> from <location> to <location> - Convert a given time between 2 locations
-#   hubot set timezone offset to <offset> - Set the default timezone offset, can be hours or minutes
+#   hubot Shared Services time - The current time in all locations
+#   hubot Shared Services at <time> - The time in all locations at the stated UK time
 #
 # Notes:
-#   The default timezone offset is used in the `hubot <time> in <location>` command.
-#   If not set, it'll fall back to hubot server's timezone.
+#   The timezone the hubot server's timezone.
+#   The Shared Service team locations should be stored in HUBOT_SHRDSVS_LOCATIONS in CSV format
 
 querystring = require('querystring')
 moment = require('moment')
@@ -28,7 +29,7 @@ parseTime = (timeStr) ->
   return if m.isValid() then m.unix() else null
 
 formatTime = (timestamp) ->
-  return moment.utc(timestamp).format('dddd, MMMM Do YYYY, h:mm:ss a')
+  return moment.utc(timestamp).format('h:mm:ss a, dddd')
 
 # Use Google's Geocode and Timezone APIs to get timezone offset for a location.
 getTimezoneInfo = (res, timestamp, location, callback) ->
@@ -72,14 +73,18 @@ getTimezoneInfo = (res, timestamp, location, callback) ->
 
 # Convert time between 2 locations and send back the results.
 # If `fromLocation` is null, send back time in `toLocation`.
-convertTime = (res, timestamp, fromLocation, toLocation) ->
+convertTime = (res, timestamp, fromLocation, toLocation, verbose) ->
+
   sendLocalTime = (utcTimestamp, location) ->
     getTimezoneInfo res, utcTimestamp, location, (err, result) ->
       if (err)
         res.send("I can't find the time at #{location}.")
       else
         localTimestamp = (utcTimestamp + result.dstOffset + result.rawOffset) * 1000
-        res.send("Time in #{result.formattedAddress} is #{formatTime(localTimestamp)}")
+        if typeof verbose != 'undefined'
+          res.send("Time in #{result.formattedAddress} is #{formatTime(localTimestamp)}")
+        else
+          res.send(formatTime(localTimestamp))
 
   if fromLocation
     getTimezoneInfo res, timestamp, fromLocation, (err, result) ->
@@ -92,13 +97,6 @@ convertTime = (res, timestamp, fromLocation, toLocation) ->
     sendLocalTime(timestamp, toLocation)
 
 module.exports = (robot) ->
-  robot.respond /set timezone offset to (-?\d+)/i, (res) ->
-    offset = parseInt(res.match[1], 10)
-    if -16 < offset && offset < 16
-      # offset is in hours
-      offset = offset * 60
-    robot.brain.data.timezoneOffset = offset
-    res.send("Default timezone offset is set to #{offset}")
 
   robot.respond /(.*) from (.*) to (.*)/i, (res) ->
     timestamp = parseTime(res.match[1])
@@ -115,3 +113,13 @@ module.exports = (robot) ->
     else
       return
     convertTime(res, timestamp, null, res.match[2])
+
+  robot.respond /(Shared Services?|dcs.?|pcs.?) time *(at)? *(.*)/i, (res) ->
+    requestedTime = if res.match[3] == '' then moment().unix() else parseTime(res.match[3])
+    shrdsvc_locations = process.env.HUBOT_SHRDSVS_LOCATIONS
+    if typeof shrdsvc_locations = 'undefined'
+      res.send "The Shared Service team locations should be stored on the server an env variable: HUBOT_SHRDSVS_LOCATIONS in (CSV format)."
+    else
+      for location in shrdsvc_locations.split(',')
+        convertTime(res, requestedTime, null, location, 'verbose')
+
