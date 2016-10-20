@@ -125,3 +125,7 @@ module.exports = (robot) ->
       for location in shrdsvc_locations.split(',')
         convertTime(res, requestedTime, null, location, 'verbose')
 
+  robot.respond /(Shared Services?|dcs.?|pcs.?) locations?/i, (res) ->
+    shrdsvc_locations = process.env.HUBOT_SHRDSVS_LOCATIONS
+    res.send "As per env var: HUBOT_SHRDSVS_LOCATIONS, " + shrdsvc_locations
+
