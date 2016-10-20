@@ -4,12 +4,15 @@
 # Dependencies:
 #   "moment": "^2.10.3"
 #
+# Configuration:
+#   HUBOT_SHRDSVS_LOCATIONS
+#
 # Commands:
 #   hubot time in <location> - Ask hubot for a time in a location
 #   hubot <time> in <location> - Convert a given time to a given location, e.g. "1pm in Sydney"
 #   hubot <time> from <location> to <location> - Convert a given time between 2 locations
-#   hubot Shared Services time - The current time in all locations
-#   hubot Shared Services at <time> - The time in all locations at the stated UK time
+#   hubot shared services/dcsc/pcsc time - The current time in all locations
+#   hubot shared services/dcsc/pcsc at <time> - The time in all locations at the stated UK time
 #
 # Notes:
 #   The timezone the hubot server's timezone.
@@ -74,7 +77,6 @@ getTimezoneInfo = (res, timestamp, location, callback) ->
 # Convert time between 2 locations and send back the results.
 # If `fromLocation` is null, send back time in `toLocation`.
 convertTime = (res, timestamp, fromLocation, toLocation, verbose) ->
-
   sendLocalTime = (utcTimestamp, location) ->
     getTimezoneInfo res, utcTimestamp, location, (err, result) ->
       if (err)
@@ -117,7 +119,7 @@ module.exports = (robot) ->
   robot.respond /(Shared Services?|dcs.?|pcs.?) time *(at)? *(.*)/i, (res) ->
     requestedTime = if res.match[3] == '' then moment().unix() else parseTime(res.match[3])
     shrdsvc_locations = process.env.HUBOT_SHRDSVS_LOCATIONS
-    if typeof shrdsvc_locations = 'undefined'
+    if typeof shrdsvc_locations == 'undefined'
       res.send "The Shared Service team locations should be stored on the server an env variable: HUBOT_SHRDSVS_LOCATIONS in (CSV format)."
     else
       for location in shrdsvc_locations.split(',')
