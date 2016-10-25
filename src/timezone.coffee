@@ -108,7 +108,7 @@ module.exports = (robot) ->
   robot.respond /(.*) in (.*)/i, (res) ->
     requestedTime = res.match[1]
     defaultOffset = robot.brain.data.timezoneOffset || moment().utcOffset()
-    if requestedTime == 'time'
+    if requestedTime.toLowerCase() == 'time'
       timestamp = moment().unix()
     else if parseTime(requestedTime)
       timestamp = parseTime(requestedTime) - defaultOffset * 60
